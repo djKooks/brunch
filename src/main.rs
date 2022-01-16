@@ -12,13 +12,19 @@ use route_config::RouteConfig;
 
 type Client = hyper::client::Client<HttpConnector, Body>;
 
+
 #[tokio::main]
 async fn main() {
     let client = Client::new();
+    let route_config = RouteConfig::new("./test/configs/test_config.yml").unwrap();
+    
+    let mut app = Router::new();
 
-    let app = Router::new()
-        .route("/proxy", get(proxy_handler))
-        .layer(AddExtensionLayer::new(client));
+    for (key, _) in route_config.route {
+        app = app.route(key.as_ref(), get(proxy_handler));
+    }
+
+    app = app.layer(AddExtensionLayer::new(client));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 4000));
     println!("server running on {}", addr);
@@ -29,19 +35,18 @@ async fn main() {
 }
 
 async fn proxy_handler(Extension(client): Extension<Client>, mut req: Request<Body>) -> Response<Body> {
-    let config = RouteConfig::new("");
+    // TODO: Make config parser as common logic, instead of calling separately
+    let route_config = RouteConfig::new("./test/configs/test_config.yml").unwrap();
     let path_query: &str = req
         .uri()
         .path_and_query()
         .map(|v| v.as_str())
         .unwrap_or(req.uri().path());
 
-    let reroute = config.route.get(path_query).unwrap();
+    let reroute = route_config.route.get(path_query).unwrap();
     println!("From : {} -> To : {}", path_query, reroute);
 
     let uri = format!("http://127.0.0.1:9000{}", reroute);
-
     *req.uri_mut() = Uri::try_from(uri).unwrap();
-
     client.request(req).await.unwrap()
 }

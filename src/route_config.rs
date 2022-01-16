@@ -32,7 +32,6 @@ impl RouteConfig {
                 
                 buf_reader.read_to_string(&mut contents).unwrap();
                 let config_data: Config = serde_yaml::from_str(&contents).unwrap();
-                // println!("{}, {}, {}",config_data.route[0].from, config_data.route[0].to, config_data.route[0].limit);
 
                 let mut test_map = HashMap::new();
                 for route in config_data.route {
